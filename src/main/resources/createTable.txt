@@ -1,0 +1,21 @@
+创建表语句
+CREATE DATABASE account_manager DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
+USE account_manager;
+CREATE TABLE `account` (
+  `user_name` varchar(10) NOT NULL,
+  `tel` varchar(11) NOT NULL,
+  `email` varchar(30) NOT NULL,
+  `password` varchar(16) NOT NULL,
+  `loginCounter` int NOT NULL DEFAULT '0',
+  `locked` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`user_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+
+ * 注册信息格式
+ * 用户名不可以重复，英文逗号隔开
+ * userName 用户名格式：2~10个任意字符
+ * tel 手机号码格式：1开头的11位数字
+ * email 邮箱格式：xx@xx
+ * password 密码格式：8~16个字符，含有至少一个数字和一个字母
+ * 注册信息范例
+ * 张三,12345678987,12345678@qq.com,12345678a
