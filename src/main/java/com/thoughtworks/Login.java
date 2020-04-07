@@ -6,100 +6,67 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Login {
-//    private String userName;
-//    private String password;
     private final int MAX_LOGIN_COUNTER = 3;
 
     public void loginInfo() {
         Scanner sc = new Scanner(System.in);
         String loginInfo = sc.next();
+
+        if (!Pattern.matches(".*,.*", loginInfo)) {
+            System.out.println("格式错误\n" +
+                    "请按正确格式输入用户名和密码：");
+            loginInfo();
+        }
+
         String[] loginInfoArr = loginInfo.split(",");
-        String loginUserName = loginInfoArr[0];
-        String loginPassword = loginInfoArr[1];
-        String userName = loginUserName;
-        String password = loginPassword;
+        String userName = loginInfoArr[0];
+        String password = loginInfoArr[1];
+        System.out.println(loginInfoArr.length);
 
         if (!isLoginInfoNormative(userName, password)) {
-            return;
-        };
+            System.out.println("格式错误\n" +
+                    "请按正确格式输入用户名和密码：");
+            loginInfo();
+        }
         loginCertification(userName, password);
     }
 
     public boolean isLoginInfoNormative(String loginUserName, String loginPassword) {
         if (!Pattern.matches(".{2,10}", loginUserName) ||
-            !Pattern.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,16}$", loginPassword)) {
-            System.out.println("格式错误\n" +
-                               "请按正确格式输入用户名和密码：");
-            loginInfo();
+                !Pattern.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,16}$", loginPassword)) {
             return false;
         }
-        return  true;
+        return true;
     }
 
     public void loginCertification(String userName, String password) {
-        Connection conn = null;
-        PreparedStatement ptmt = null;
-        ResultSet rs = null;
-        String sql = null;
-        try {
-            conn = JDBCUtils.getConnection();
-            sql = "SELECT tel, email, password, loginCounter, locked FROM account WHERE user_name = ?;";
-            ptmt = conn.prepareStatement(sql);
-            ptmt.setString(1, userName);
-            rs = ptmt.executeQuery();
-            boolean isMatchUserName = rs.next();
-
-            if (isMatchUserName && rs.getInt("locked") == 1) {
-                System.out.println("您已" + MAX_LOGIN_COUNTER + "次输错密码，账号被锁定");
-                return;
-            }
-
-            int loginCounter = rs.getInt("loginCounter");
-
-            if (isMatchUserName && Objects.equals(rs.getString("password"), password)) {
-                loginSuccess(conn, rs, userName);
-            } else if(isMatchUserName && !Objects.equals(rs.getString("password"), password)) {
-                loginFailed(conn, loginCounter,userName);
-            } else {
-                System.out.println("您输入的用户名或密码错误！\n请重新输入用户名和密码");
-                loginInfo();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            JDBCUtils.close(rs, ptmt, conn);
+        UserInfo userInfo = JDBCOperation.getUserInfoByName(userName);
+        if (userInfo == null) {
+            System.out.println("您输入的用户名或密码错误！\n请重新输入用户名和密码");
+            loginInfo();
+        } else if(userInfo.getLocked() == 1) {
+            System.out.println("您已" + MAX_LOGIN_COUNTER + "次输错密码，账号被锁定");
+        } else if(Objects.equals(userInfo.getPassword(), password)) {
+            loginSuccess(userInfo);
+        } else {
+            loginFailed(userInfo, userName);
         }
     }
 
-    public void loginSuccess(Connection conn, ResultSet rs, String userName) throws SQLException {
-        String tel = rs.getString("tel");
-        String email = rs.getString("email");
-        String sql = "UPDATE account SET loginCounter = 0 WHERE user_name = ?;";
-        PreparedStatement ptmt = conn.prepareStatement(sql);
-        ptmt.setString(1, userName);
-        ptmt.executeUpdate();
+    public void loginSuccess(UserInfo userInfo) {
+        JDBCOperation.updateLoginCounter(true, userInfo.getUserName());
         System.out.println(String.format("%s，欢迎回来！\n您的手机号是%s，邮箱是%s",
-                userName, tel, email));
+                userInfo.getUserName(), userInfo.getTel(), userInfo.getEmail()));
     }
 
-    public void loginFailed(Connection conn, int loginCounter, String userName) throws SQLException {
-        String sql = "UPDATE account SET loginCounter = loginCounter - 1 WHERE user_name = ?;";
-        PreparedStatement ptmt = conn.prepareStatement(sql);
-        ptmt.setString(1, userName);
-        ptmt.executeUpdate();
-        if (loginCounter == 1) {
-            lockAccount(conn, userName);
+    public void loginFailed(UserInfo userInfo, String userName) {
+        JDBCOperation.updateLoginCounter(false, userInfo.getUserName());
+        if (userInfo.getLoginCounter() == 1) {
+            JDBCOperation.lockAccount(userName);
+            System.out.println("您已" + MAX_LOGIN_COUNTER + "次输错密码，账号被锁定");
             return;
         }
-        System.out.println("您输入的用户名或密码错误，还有" + (loginCounter - 1) + "次机会！\n请重新输入用户名和密码");
+        System.out.println("您输入的用户名或密码错误，还有" + (userInfo.getLoginCounter() - 1) + "次机会！\n请重新输入用户名和密码");
         loginInfo();
-    }
-
-    public void lockAccount(Connection conn, String userName) throws SQLException {
-        String sql = "UPDATE account SET locked = '1' WHERE user_name = ?;";
-        PreparedStatement ptmt = conn.prepareStatement(sql);
-        ptmt.setString(1, userName);
-        ptmt.executeUpdate();
-        System.out.println("您已" + MAX_LOGIN_COUNTER + "次输错密码，账号被锁定");
     }
 }

@@ -15,26 +15,24 @@ public class Register {
         Scanner sc = new Scanner(System.in);
         String registerInfo = sc.next();
         if(!isRegisterInfoComplete(registerInfo)) {
-            System.out.println("请输入合法的注册信息：");
+            System.out.println("请输入合法的注册信息:");
             inputRegisterInfo();
-            return;
         };
         String[] registerInfoArr = registerInfo.split(",");
-        String userName = registerInfoArr[0];
-        String tel = registerInfoArr[1];
-        String email = registerInfoArr[2];
-        String password = registerInfoArr[3];
+        UserInfo userInfo = new UserInfo();
+        userInfo.setUserName(registerInfoArr[0]);
+        userInfo.setTel(registerInfoArr[1]);
+        userInfo.setEmail(registerInfoArr[2]);
+        userInfo.setPassword(registerInfoArr[3]);
 
-        if (!isRegisterInfoNormative(userName, tel, email, password)) {
+        if (!isRegisterInfoNormative(userInfo.getUserName(), userInfo.getTel(), userInfo.getEmail(), userInfo.getPassword())) {
             inputRegisterInfo();
-            return;
         };
-        if (isRepeat(userName)) {
-            System.out.println("用户名" + userName + "已被注册！\n请重新输入:");
+        if (isRepeat(userInfo.getUserName())) {
+            System.out.println("用户名" + userInfo.getUserName() + "已被注册！\n请重新输入:");
             inputRegisterInfo();
-            return;
         };
-        save(userName, tel, email, password);
+        JDBCOperation.save(userInfo, MAX_LOGIN_COUNTER);
     }
 
     /**
@@ -94,29 +92,5 @@ public class Register {
         } finally {
             JDBCUtils.close(rs, ptmt, conn);
         }
-    }
-
-    /**
-     *存储注册信息
-     */
-    public void save(String loginUserName, String loginTel, String loginEmail, String loginPassword) {
-        PreparedStatement ptmt = null;
-        Connection conn = null;
-            try {
-                conn = JDBCUtils.getConnection();
-                String sql = "INSERT INTO account(user_name, tel, email, password, loginCounter) VALUES(?, ?, ?, ?, ?)";
-                ptmt = conn.prepareStatement(sql);
-                ptmt.setString(1, loginUserName);
-                ptmt.setString(2, loginTel);
-                ptmt.setString(3, loginEmail);
-                ptmt.setString(4, loginPassword);
-                ptmt.setInt(5, MAX_LOGIN_COUNTER);
-                ptmt.executeUpdate();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            } finally {
-                JDBCUtils.close(ptmt, conn);
-            }
-            System.out.println(loginUserName + "，恭喜你注册成功！");
     }
 }
